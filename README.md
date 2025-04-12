@@ -1,0 +1,1 @@
+# merge-request-quality-validator
