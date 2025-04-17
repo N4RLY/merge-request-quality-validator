@@ -22,6 +22,12 @@ def format_analysis_result(analysis: Dict[str, Any]) -> str:
     
     markdown = []
     
+    # PR Link
+    pr_url = analysis.get("pr_url")
+    if pr_url:
+        pr_url = pr_url.replace("api.", "").replace("/repos", "").replace("pulls", "pull")
+        markdown.append(f"[🔗 View Pull Request]({pr_url})\n")
+    
     # Overall Score
     score = analysis.get("overall_score", "N/A")
     markdown.append(f"## Overall Score: {score}/10\n")
