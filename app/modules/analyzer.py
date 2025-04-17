@@ -93,37 +93,75 @@ class MergeRequestAnalyzer:
     
     def _build_analysis_prompt(self, diff_content: str) -> str:
         """Builds the prompt for the Yandex Cloud API."""
-        return f"""You are a senior Python code reviewer. Analyze this code diff. Identify:
-1. Code quality issues (explain).
-2. Good practices or design patterns used.
-3. Overall quality score (0–10) with short justification.
-4. Patterns used and their applicability to the code.
-5. Anti-patterns used and justification for why they are bad.
+        return f"""You are a senior Python code reviewer. Analyze this code diff and respond with a single JSON object.
 
-Respond ONLY with a valid JSON object following this exact format:
+1. Code quality issues:
+   • List each issue, explain why it’s problematic, and reference file:line ranges.
+   • Classify severity:
+     – Critical defect (crash, security, data loss): –2.0…–3.0
+     – Serious anti-pattern (God Class, Spaghetti Code, Shotgun Surgery): –1.0
+     – Medium anti-pattern (Duplicated Code, Primitive Obsession, Magic Numbers, Long Parameter List): –0.5
+     – Minor code smell (PEP8 violations, long lines, poor naming): –0.1
+
+2. Good practices & design patterns:
+   • Identify patterns (Factory, Strategy, Observer, Singleton, Context Manager, etc.).
+   • Explain how and where each is applied.
+
+3. Overall quality score (0–10) with justification:
+   • Start from 10.0  
+   • Apply penalties Σ penalty_j and bonuses Σ bonus_i:
+       – Penalties per severity above.
+       + Bonuses:
+         + Design patterns used: +0.3 each (max +1.0)
+         + Refactored inherited anti-pattern: +1.0
+         + Added or improved tests: +0.5
+         + Docstrings & type hints: +0.2
+   • Clamp raw_score = min(10.0, max(0.0, 10.0 + Σ bonus_i – Σ penalty_j))
+   • Apply complexity multiplier K:
+       – Low (≤50 lines & ≤2 files, trivial): K = 0.8
+       – Medium (50–200 lines or mixed complexity): K = 1.0
+       – High (≥200 lines & ≥10 files or deep logic/security): K = 1.2
+   • Compute overall_score = round(raw_score_clamped × K, 1)
+
+4. Anti-patterns:
+   • List each anti-pattern name.
+   • Explain why it’s bad.
+   • Indicate status: “new” (introduced), “existing” (inherited), or “fixed” (removed).
+
+5. Review comments:
+   • Summarize reviewer feedback and note which comments were addressed or remain unresolved.
+
+6. Few-shot example:
+
+Findings                      | Category                    | Weight | MR Complexity | Δ
+------------------------------|-----------------------------|--------|---------------|-----
+Introduced God Class          | Serious anti-pattern        | –1.0   | Medium (1.0)  | –1.0
+Added Factory for parser      | Design pattern              | +0.3   |               | +0.3
+Duplicated code               | Medium anti-pattern         | –0.5   |               | –0.5
+Added tests                   | Testing                     | +0.5   |               | +0.5
+Subtotal before complexity**  |                             |        |               | **–0.7
+Complexity multiplier (K=1.0) |                             |        |               | ×1.0
+Final MR score                |                             |        |               | 9.3
+
+Example output:
 ```json
 {{
-    "quality_issues": [
-        "Issue description 1",
-        "Issue description 2",
-        ...
-    ],
-    "good_practices": [
-        "Good practice description 1",
-        "Good practice description 2",
-        ...
-    ],
-    "patterns": [
-        "Design pattern name 1",
-        "Design pattern name 2",
-        ...
-    ],
-    "anti_patterns": [
-        "Anti-pattern name 1",
-        "Anti-pattern name 2",
-        ...
-    ],
-    "overall_score": 8
+  "quality_issues": [
+    "God Class in models/user.py:1–200 — class handles too many responsibilities",
+    "Duplicated data formatting logic in utils.py:50–60 and report.py:120–130"
+  ],
+  "good_practices": [
+    "Factory pattern used to instantiate parser based on file type",
+    "Added unit tests for edge cases"
+  ],
+  "patterns": [
+    "Factory"
+  ],
+  "anti_patterns": [
+    "God Class",
+    "Duplicated Code"
+  ],
+  "overall_score": 9.3
 }}
 ```
 
