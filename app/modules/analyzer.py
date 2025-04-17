@@ -96,7 +96,7 @@ class MergeRequestAnalyzer:
         return f"""You are a senior Python code reviewer. Analyze this code diff and respond with a single JSON object.
 
 1. Code quality issues:
-   • List each issue, explain why it’s problematic, and reference file:line ranges.
+   • List each issue, explain why it's problematic, and reference file:line ranges.
    • Classify severity:
      – Critical defect (crash, security, data loss): –2.0…–3.0
      – Serious anti-pattern (God Class, Spaghetti Code, Shotgun Surgery): –1.0
@@ -125,8 +125,8 @@ class MergeRequestAnalyzer:
 
 4. Anti-patterns:
    • List each anti-pattern name.
-   • Explain why it’s bad.
-   • Indicate status: “new” (introduced), “existing” (inherited), or “fixed” (removed).
+   • Explain why it's bad.
+   • Indicate status: "new" (introduced), "existing" (inherited), or "fixed" (removed).
 
 5. Review comments:
    • Summarize reviewer feedback and note which comments were addressed or remain unresolved.
@@ -180,30 +180,39 @@ Code diff:
             Analysis results
         """
         logger.info("Starting code changes analysis using diff content")
-        
-        try:
-            if not diff_content:
-                logger.warning("Diff content is empty, returning empty analysis.")
-                return {
-                    "quality_issues": [],
-                    "good_practices": [],
-                    "patterns": [],
-                    "anti_patterns": [],
-                    "overall_score": None,
-                    "raw_response": "Input diff content was empty.",
-                    "error": "Input diff content was empty."
-                }
-            
-            prompt = self._build_analysis_prompt(diff_content)
-            
-            response = self.call_yandex_cloud_api(prompt)
-            
-            return self._parse_analysis_response(response)
-            
-        except Exception as e:
-            logger.error(f"Error during code changes analysis: {str(e)}", exc_info=True)
-            return {"error": f"Error during code changes analysis: {str(e)}"}
-    
+        max_attempts = 3
+        attempt = 0
+        last_result = None
+        while attempt < max_attempts:
+            try:
+                if not diff_content:
+                    logger.warning("Diff content is empty, returning empty analysis.")
+                    return {
+                        "quality_issues": [],
+                        "good_practices": [],
+                        "patterns": [],
+                        "anti_patterns": [],
+                        "overall_score": None,
+                        "raw_response": "Input diff content was empty.",
+                        "error": "Input diff content was empty."
+                    }
+                prompt = self._build_analysis_prompt(diff_content)
+                # On retry, add a note to the prompt to output strict JSON
+                if attempt > 0:
+                    prompt = prompt + "\n\nIMPORTANT: Output only valid JSON, no extra text."
+                response = self.call_yandex_cloud_api(prompt)
+                result = self._parse_analysis_response(response)
+                last_result = result
+                # If fallback was not used, or this is the last attempt, return
+                if not getattr(result, '_used_fallback', False) or attempt == max_attempts - 1:
+                    return result
+                logger.warning(f"Retrying analysis due to fallback JSON extraction (attempt {attempt+2})")
+            except Exception as e:
+                logger.error(f"Error during code changes analysis: {str(e)}", exc_info=True)
+                return {"error": f"Error during code changes analysis: {str(e)}"}
+            attempt += 1
+        return last_result
+
     def analyze_pull_request(self, pr_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Analyze a pull request from structured data (title, description, files with patches).
@@ -216,64 +225,69 @@ Code diff:
             Analysis results
         """
         logger.info("Starting pull request analysis using structured data")
-        
-        try:
-            if not isinstance(pr_data, dict):
-                logger.error("PR data must be a dictionary")
-                return {"error": "PR data must be a dictionary"}
-            
-            title = pr_data.get('title', 'N/A')
-            description = pr_data.get('description', 'No description provided.')
-            files = pr_data.get('files', [])
-            
-            if not isinstance(files, list):
-                logger.error("'files' must be a list")
-                return {"error": "'files' must be a list"}
-            
-            if not files:
-                logger.warning("No files found in the pull request data, returning empty analysis.")
-                return {
-                    "quality_issues": [], "good_practices": [], "patterns": [],
-                    "anti_patterns": [], "overall_score": None,
-                    "raw_response": "No files found in PR data.",
-                    "error": "No files found in PR data."
-                }
-            
-            diff_parts = []
-            diff_parts.append(f"# Pull Request: {title}")
-            diff_parts.append(f"\n## Description\n{description}\n")
-            diff_parts.append("## Changes\n")
-            
-            for file_info in files:
-                if not isinstance(file_info, dict):
-                    logger.warning(f"Skipping invalid file entry in PR data: {file_info}")
-                    continue
-                
-                filename = file_info.get('filename')
-                patch = file_info.get('patch')
-                
-                if filename and patch:
-                    diff_parts.append(f"--- a/{filename}")
-                    diff_parts.append(f"+++ b/{filename}")
-                    diff_parts.append("```diff")
-                    diff_parts.append(patch.strip('\n'))
-                    diff_parts.append("```\n")
-                elif filename:
-                    logger.warning(f"File '{filename}' in PR data has no patch content.")
-                    diff_parts.append(f"--- a/{filename}")
-                    diff_parts.append(f"+++ b/{filename}")
-                    diff_parts.append("(No patch content provided)\n")
-            
-            diff_content = "\n".join(diff_parts)
-            
-            prompt = self._build_analysis_prompt(diff_content)
-            response = self.call_yandex_cloud_api(prompt)
-            
-            return self._parse_analysis_response(response)
-            
-        except Exception as e:
-            logger.error(f"Error analyzing pull request: {str(e)}", exc_info=True)
-            return {"error": f"Error analyzing pull request: {str(e)}"}
+        max_attempts = 3
+        attempt = 0
+        last_result = None
+        while attempt < max_attempts:
+            try:
+                if not isinstance(pr_data, dict):
+                    logger.error("PR data must be a dictionary")
+                    return {"error": "PR data must be a dictionary"}
+                title = pr_data.get('title', 'N/A')
+                description = pr_data.get('description', 'No description provided.')
+                files = pr_data.get('files', [])
+                if not isinstance(files, list):
+                    logger.error("'files' must be a list")
+                    return {"error": "'files' must be a list"}
+                if not files:
+                    logger.warning("No files found in the pull request data, returning empty analysis.")
+                    return {
+                        "quality_issues": [], "good_practices": [], "patterns": [],
+                        "anti_patterns": [], "overall_score": None,
+                        "raw_response": "No files found in PR data.",
+                        "error": "No files found in PR data."
+                    }
+                diff_parts = []
+                diff_parts.append(f"# Pull Request: {title}")
+                diff_parts.append(f"\n## Description\n{description}\n")
+                diff_parts.append("## Changes\n")
+                for file_info in files:
+                    if not isinstance(file_info, dict):
+                        logger.warning(f"Skipping invalid file entry in PR data: {file_info}")
+                        continue
+                    filename = file_info.get('filename')
+                    patch = file_info.get('patch')
+                    if filename and patch:
+                        diff_parts.append(f"--- a/{filename}")
+                        diff_parts.append(f"+++ b/{filename}")
+                        diff_parts.append("```diff")
+                        diff_parts.append(patch.strip('\n'))
+                        diff_parts.append("```")
+                    elif filename:
+                        logger.warning(f"File '{filename}' in PR data has no patch content.")
+                        diff_parts.append(f"--- a/{filename}")
+                        diff_parts.append(f"+++ b/{filename}")
+                        diff_parts.append("(No patch content provided)\n")
+                diff_content = "\n".join(diff_parts)
+                prompt = self._build_analysis_prompt(diff_content)
+                # On retry, add a note to the prompt to output strict JSON
+                if attempt > 0:
+                    prompt = prompt + "\n\nIMPORTANT: Output only valid JSON, no extra text."
+                response = self.call_yandex_cloud_api(prompt)
+                result = self._parse_analysis_response(response)
+                # Add PR URL if available
+                if 'url' in pr_data:
+                    result['pr_url'] = pr_data['url']
+                last_result = result
+                # If fallback was not used, or this is the last attempt, return
+                if not getattr(result, '_used_fallback', False) or attempt == max_attempts - 1:
+                    return result
+                logger.warning(f"Retrying analysis due to fallback JSON extraction (attempt {attempt+2})")
+            except Exception as e:
+                logger.error(f"Error analyzing pull request: {str(e)}", exc_info=True)
+                return {"error": f"Error analyzing pull request: {str(e)}"}
+            attempt += 1
+        return last_result
     
     def _parse_analysis_response(self, response: Dict[str, Any]) -> Dict[str, Any]:
         """Parse and structure the API response, handling JSON and fallbacks."""
@@ -285,10 +299,8 @@ Code diff:
                 "raw_response": f"API Error: {response['error']}",
                 "error": f"API Error: {response['error']}"
             }
-        
         message = ""
         raw_api_response_data = response.get("result", {}).get("alternatives", [])
-        
         if raw_api_response_data:
             first_alt = raw_api_response_data[0]
             if isinstance(first_alt, dict):
@@ -312,7 +324,6 @@ Code diff:
                 "raw_response": "API response contained no alternatives.",
                 "error": "API response contained no alternatives."
             }
-        
         analysis = {
             "quality_issues": [],
             "good_practices": [],
@@ -321,7 +332,6 @@ Code diff:
             "overall_score": None,
             "raw_response": message
         }
-        
         parsed_json = None
         try:
             cleaned_message = message.strip()
@@ -335,11 +345,9 @@ Code diff:
                 logger.info("Successfully parsed cleaned API response as JSON.")
             else:
                 logger.warning("Cleaned message does not appear to be a JSON object. Trying regex.")
-
         except json.JSONDecodeError as json_err:
             logger.warning(f"Failed to parse cleaned response directly as JSON: {json_err}. Trying regex extraction.")
             parsed_json = None
-
         if parsed_json is None:
             json_match = re.search(r"```json\s*(\{.*?\})\s*```", message, re.DOTALL)
             if json_match:
@@ -352,14 +360,12 @@ Code diff:
                     parsed_json = None
             else:
                 logger.warning("Could not find JSON block via regex.")
-
         if parsed_json is not None and isinstance(parsed_json, dict):
             analysis["quality_issues"] = parsed_json.get("quality_issues", [])
             analysis["good_practices"] = parsed_json.get("good_practices", [])
             analysis["patterns"] = parsed_json.get("patterns", [])
             analysis["anti_patterns"] = parsed_json.get("anti_patterns", [])
             score_val = parsed_json.get("overall_score")
-
             if score_val is not None:
                 try:
                     analysis["overall_score"] = float(score_val)
@@ -370,24 +376,21 @@ Code diff:
                 if not isinstance(analysis[key], list):
                     logger.warning(f"Field '{key}' in parsed JSON is not a list, resetting to empty list.")
                     analysis[key] = []
-
         else:
             logger.warning("JSON parsing failed. Falling back to less reliable regex extraction for analysis fields.")
-
+            analysis['_used_fallback'] = True
             quality_match = re.search(r"1\.\s*Code quality issues:?\s*\n(.*?)(?=\n\s*2\.|\Z)", message, re.DOTALL | re.IGNORECASE)
             if quality_match:
                 quality_text = quality_match.group(1).strip()
                 issues = re.findall(r"^\s*[-•*]\s+(.*)", quality_text, re.MULTILINE)
                 if not issues: issues = re.findall(r"^\s*\d+\.\s+(.*)", quality_text, re.MULTILINE)
                 analysis["quality_issues"] = [issue.strip() for issue in issues if issue.strip()]
-
             practices_match = re.search(r"2\.\s*Good practices:?\s*\n(.*?)(?=\n\s*3\.|\Z)", message, re.DOTALL | re.IGNORECASE)
             if practices_match:
                 practices_text = practices_match.group(1).strip()
                 practices = re.findall(r"^\s*[-•*]\s+(.*)", practices_text, re.MULTILINE)
                 if not practices: practices = re.findall(r"^\s*\d+\.\s+(.*)", practices_text, re.MULTILINE)
                 analysis["good_practices"] = [practice.strip() for practice in practices if practice.strip()]
-
             score_match = re.search(r"3\.\s*Overall quality score:?\s*.*?(\d+(?:\.\d+)?)\s*(?:/|out of)\s*10", message, re.DOTALL | re.IGNORECASE)
             if score_match:
                 try:
@@ -395,9 +398,7 @@ Code diff:
                 except ValueError:
                     logger.warning(f"Could not parse score from regex match: {score_match.group(1)}")
                     analysis["overall_score"] = None
-
             logger.warning("Fallback regex extraction completed. Patterns and anti-patterns might be missing or inaccurate.")
-
         return analysis
 
 if __name__ == "__main__":
