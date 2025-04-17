@@ -6,7 +6,7 @@
 ## Installation
 - Run in terminal:
 ```
-$ uv install --all-groups
+$ uv sync --all-groups
 ```
 - Done!
 
@@ -49,7 +49,7 @@ The application also provides a web interface using Gradio for easier interactio
 
 #### Running the Web Interface
 ```
-python app/gradio_ui.py
+python -m app.gradio_ui
 ```
 
 This will start a local web server and open the interface in your default browser. The interface allows you to:
@@ -66,10 +66,10 @@ The results will show:
 - Anti-patterns detected
 
 #### Example Usage
-1. Enter repository name: `octocat/Hello-World`
-2. Enter username: `octocat`
+1. Enter repository name: `run-llama/llama_index`
+2. Enter username: `bmax`
 3. Set start date: `2024-01-01`
-4. Set end date: `2024-03-31`
+4. Set end date: `2025-12-31`
 5. Click "Analyze Pull Requests"
 
 The results will be displayed in the output section below the form.
