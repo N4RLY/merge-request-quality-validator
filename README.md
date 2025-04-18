@@ -15,7 +15,19 @@ $ uv sync --all-groups
 ```
 $ cp .env.example .env
 ```
-- Update the `.env` file with your specific configuration values.
+- Create a classic GitHub personal access token:
+  1. Go to your GitHub account settings
+  2. Navigate to Developer Settings > Personal access tokens > Tokens (classic)
+  3. Click "Generate new token (classic)"
+  4. Give your token a name and select at least the `repo` scope
+  5. Click "Generate token" and copy the generated token
+- Update the `.env` file with your configuration values:
+  ```
+  GITHUB_TOKEN=your_github_token_here
+  YANDEX_CLOUD_API_KEY=your_api_key_here
+  YANDEX_CLOUD_FOLDER_ID=your_folder_id_here
+  YANDEX_CLOUD_MODEL_NAME=your_model_name_here
+  ```
 
 ## Running the Application
 
