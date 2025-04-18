@@ -1,0 +1,35 @@
+# Git
+.git/
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+*.egg
+.venv/
+venv/
+ENV/
+
+# Environment files
+.env
+
+# IDE settings
+.vscode/
+.idea/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+notebooks/
+
+# Build directories
+dist/
+build/
+
+# Results
+results.json
+pr_data_list.json
+sample_pr.json 

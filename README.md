@@ -73,3 +73,45 @@ The results will show:
 5. Click "Analyze Pull Requests"
 
 The results will be displayed in the output section below the form.
+
+### Docker
+The application can also be run using Docker, which provides an isolated environment with all dependencies pre-installed.
+
+#### Prerequisites
+- Docker installed on your system
+- Docker Compose (optional, but recommended)
+
+#### Using Docker Compose (Recommended)
+1. Make sure you have a `.env` file with your API keys:
+```
+$ cp .env.example .env
+```
+2. Edit the `.env` file with your actual API keys
+
+3. Build and start the container:
+```
+$ docker-compose up
+```
+
+4. Access the Gradio interface at http://localhost:7860
+
+#### Using Docker Directly
+1. Build the Docker image:
+```
+$ docker build -t merge-request-validator .
+```
+
+2. Run the container:
+```
+$ docker run -p 7860:7860 -v $(pwd)/.env:/app/.env -e GRADIO_SERVER_NAME=0.0.0.0 merge-request-validator
+```
+
+3. Access the Gradio interface at http://localhost:7860
+
+#### Environment Variables
+When running with Docker, you can either:
+- Mount your `.env` file as shown above
+- Pass environment variables directly to the container:
+```
+$ docker run -p 7860:7860 -e GITHUB_TOKEN=your_token -e YANDEX_CLOUD_API_KEY=your_key -e GRADIO_SERVER_NAME=0.0.0.0 merge-request-validator
+```

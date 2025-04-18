@@ -1,0 +1,13 @@
+version: '3'
+
+services:
+  merge-request-validator:
+    build: .
+    ports:
+      - "7860:7860"
+    volumes:
+      - ./.env:/app/.env
+    environment:
+      - GRADIO_SERVER_NAME=0.0.0.0
+      - GRADIO_SERVER_PORT=7860
+    restart: unless-stopped 
