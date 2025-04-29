@@ -1,4 +1,28 @@
-# merge-request-quality-validator
+# 🧠 merge-request-quality-validator
+
+This project was developed as part of the **LLM Coding Challenge 2025** — a case study provided by [AlfaStrakhovanie](https://llm-challenge.com/).
+
+## 📌 Case Description
+
+**Goal:**  
+Create an AI-powered tool that analyzes a developer's pull/merge requests over a specified period and generates a **code quality report**.
+
+**The challenge focuses on:**
+- Automated **code quality assessment**
+- Detection of **anti-patterns** and architectural issues
+- Highlighting **strengths** and **growth areas**
+- Tracking **code authorship** and historical changes
+
+**Why is this important for the company?**
+- To objectively evaluate the effectiveness of technical teams
+- To improve the accuracy and transparency of developer assessments (regrading)
+- To provide developers with actionable, fact-based feedback for professional growth
+
+## 👥 Team
+
+- **Arthur Babkin** — Product Management, Machine Learning Engineer  
+- **Alexander Maly** — Machine Learning Engineer, DevOps  
+- **Alexey Tkachenko** — Backend Development, DevOps
 
 # Development
 ## Prerequisites
